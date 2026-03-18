@@ -5,6 +5,8 @@ import com.example.frauddetector.core.detection.FraudTypeClassifier
 import com.example.frauddetector.core.detection.FraudVerifier
 import com.example.frauddetector.core.detection.StubFraudTypeClassifier
 import com.example.frauddetector.core.detection.StubFraudVerifier
+import com.example.frauddetector.core.recording.DefaultEventRecordingPolicy
+import com.example.frauddetector.core.recording.EventRecordingPolicy
 import com.example.frauddetector.core.source.EventSource
 import com.example.frauddetector.core.source.FakeEventSource
 import dagger.Binds
@@ -29,6 +31,10 @@ abstract class CoreBindingsModule {
     @Binds
     @Singleton
     abstract fun bindEventSource(impl: FakeEventSource): EventSource
+
+    @Binds
+    @Singleton
+    abstract fun bindEventRecordingPolicy(impl: DefaultEventRecordingPolicy): EventRecordingPolicy
 }
 
 @Module

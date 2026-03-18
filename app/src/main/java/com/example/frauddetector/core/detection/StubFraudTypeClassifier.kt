@@ -6,11 +6,16 @@ import kotlin.math.min
 
 class StubFraudTypeClassifier @Inject constructor() : FraudTypeClassifier {
     override suspend fun classify(sequence: BehaviorSequence): StageAResult {
-        val actions = sequence.events.map { it.action.lowercase() }
+        val actionTokens = sequence.events.map { it.action.lowercase() }
+        val appTokens = sequence.events.mapNotNull { it.app?.lowercase() }
         val topType = when {
-            actions.any { "shop" in it || "mall" in it } -> "fake_shop"
-            actions.any { "reward" in it || "task" in it } -> "shuadan"
-            actions.any { "adult" in it || "porn" in it } -> "pornographic_inducement"
+            actionTokens.any { "shop" in it || "mall" in it || "购买" in it } ||
+                appTokens.any { "闲鱼" in it } -> "fake_shop"
+
+            actionTokens.any { "reward" in it || "task" in it || "刷单" in it } -> "shuadan"
+
+            actionTokens.any { "adult" in it || "porn" in it || "色情" in it } -> "pornographic_inducement"
+
             else -> "other"
         }
 

@@ -1,6 +1,8 @@
 package com.example.frauddetector.core.source
 
 import com.example.frauddetector.domain.model.BehaviorEvent
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -11,8 +13,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import javax.inject.Singleton
 
 @Singleton
 class FakeEventSource @Inject constructor() : EventSource {
@@ -60,10 +60,13 @@ class FakeEventSource @Inject constructor() : EventSource {
     )
 
     private val samples = listOf(
-        Sample("open_shop_offer", "ChatApp", "social", "flash-sale.example", "ecommerce"),
-        Sample("click_task_reward", "MessageBox", "social", "reward-center.example", "task"),
-        Sample("switch_foreground_app", "BankApp", "finance", null, null),
-        Sample("open_browser", "Browser", "tools", "news.example", "news"),
-        Sample("visit_adult_banner", "Browser", "tools", "adult-bait.example", "unknown")
+        Sample("打开应用", "闲鱼", "电商类app", null, null),
+        Sample("文本聊天", "闲鱼", "电商类app", null, null),
+        Sample("打开应用", "支付宝", "金融类app", null, null),
+        Sample("扫码", "支付宝", "金融类app", null, null),
+        Sample("打开应用", "云闪付", "金融类app", null, null),
+        Sample("购买商品", "云闪付", "金融类app", null, null),
+        Sample("打开浏览器", "Chrome", "工具类app", "flash-sale.example", "电商网站"),
+        Sample("切换前台应用", "相机", "工具类app", null, null)
     )
 }

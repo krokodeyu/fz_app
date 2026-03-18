@@ -16,8 +16,8 @@ pluginManagement {
         eachPlugin {
             when (requested.id.id) {
                 "com.android.application" -> useModule("com.android.tools.build:gradle:${requested.version}")
-                "org.jetbrains.kotlin.android",
-                "org.jetbrains.kotlin.plugin.compose" -> useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+                "org.jetbrains.kotlin.android" -> useModule("org.jetbrains.kotlin.android:org.jetbrains.kotlin.android.gradle.plugin:${requested.version}")
+                "org.jetbrains.kotlin.plugin.compose" -> useModule("org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:${requested.version}")
                 "com.google.devtools.ksp" -> useModule("com.google.devtools.ksp:symbol-processing-gradle-plugin:${requested.version}")
                 "com.google.dagger.hilt.android" -> useModule("com.google.dagger:hilt-android-gradle-plugin:${requested.version}")
             }

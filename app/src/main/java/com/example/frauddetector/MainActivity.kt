@@ -24,7 +24,11 @@ class MainActivity : ComponentActivity() {
             Surface(color = MaterialTheme.colorScheme.background) {
                 MainScreen(
                     state = state,
-                    onCollectChanged = viewModel::onCollectSwitchChanged,
+                    onCollectionChanged = viewModel::onCollectionSwitchChanged,
+                    onRecordingChanged = viewModel::onRecordingSwitchChanged,
+                    onObservableOnlyChanged = viewModel::onObservableOnlySwitchChanged,
+                    onTextProjectionChanged = viewModel::onTextProjectionSwitchChanged,
+                    onDetectionChanged = viewModel::onDetectionSwitchChanged,
                     onClearData = viewModel::clearData
                 )
             }
