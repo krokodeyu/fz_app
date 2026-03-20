@@ -2,17 +2,18 @@ package com.example.frauddetector.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.frauddetector.BuildConfig
 import com.example.frauddetector.core.detection.DetectionResult
-import com.example.frauddetector.core.recording.EventRecordingPolicy
 import com.example.frauddetector.core.source.EventSource
+import com.example.frauddetector.core.export.BehaviorSeqJsonExporter
 import com.example.frauddetector.domain.model.BehaviorEvent
 import com.example.frauddetector.domain.model.BehaviorTextProjection
 import com.example.frauddetector.domain.model.CollectionSettings
+import com.example.frauddetector.domain.repo.BehaviorEventRepository
 import com.example.frauddetector.domain.usecase.AggregateWindowUseCase
 import com.example.frauddetector.domain.usecase.BuildBehaviorTextUseCase
 import com.example.frauddetector.domain.usecase.ObserveCollectionSettingsUseCase
 import com.example.frauddetector.domain.usecase.ObserveRecentEventsUseCase
-import com.example.frauddetector.domain.repo.BehaviorEventRepository
 import com.example.frauddetector.domain.usecase.RecordBehaviorEventUseCase
 import com.example.frauddetector.domain.usecase.RunDetectionUseCase
 import com.example.frauddetector.domain.usecase.UpdateCollectionSettingsUseCase
@@ -29,8 +30,8 @@ import timber.log.Timber
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val observeRecentEventsUseCase: ObserveRecentEventsUseCase,
-    private val observeCollectionSettingsUseCase: ObserveCollectionSettingsUseCase,
+    observeRecentEventsUseCase: ObserveRecentEventsUseCase,
+    observeCollectionSettingsUseCase: ObserveCollectionSettingsUseCase,
     private val updateCollectionSettingsUseCase: UpdateCollectionSettingsUseCase,
     private val aggregateWindowUseCase: AggregateWindowUseCase,
     private val buildBehaviorTextUseCase: BuildBehaviorTextUseCase,
@@ -38,7 +39,7 @@ class MainViewModel @Inject constructor(
     private val recordBehaviorEventUseCase: RecordBehaviorEventUseCase,
     private val repository: BehaviorEventRepository,
     private val eventSource: EventSource,
-    private val recordingPolicy: EventRecordingPolicy
+    private val behaviorSeqJsonExporter: BehaviorSeqJsonExporter
 ) : ViewModel() {
 
     private val windowMillis = 5 * 60 * 1000L
@@ -46,16 +47,20 @@ class MainViewModel @Inject constructor(
     private val settingsFlow = observeCollectionSettingsUseCase()
         .stateIn(viewModelScope, SharingStarted.Eagerly, CollectionSettings())
 
-    private val projectionState = MutableStateFlow(BehaviorTextProjection())
+    private val recentEventsFlow = observeRecentEventsUseCase(limit = 30)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    private val projectionState = MutableStateFlow(BehaviorTextProjection())
     private val detectionState = MutableStateFlow(defaultDetectionResult())
+    private val exportJsonState = MutableStateFlow("")
 
     val uiState: StateFlow<MainUiState> = combine(
-        observeRecentEventsUseCase(limit = 30),
+        recentEventsFlow,
         settingsFlow,
         projectionState,
-        detectionState
-    ) { recentEvents, settings, projection, detection ->
+        detectionState,
+        exportJsonState
+    ) { recentEvents, settings, projection, detection, exportJson ->
         MainUiState(
             collectionEnabled = settings.collectionEnabled,
             recordingEnabled = settings.recordingEnabled,
@@ -65,8 +70,10 @@ class MainViewModel @Inject constructor(
             recentEvents = recentEvents,
             projectedEvents = projection.projectedEvents,
             currentWindowText = projection.text,
+            exportJson = exportJson,
             detectionResult = detection,
-            recordingStatusText = buildRecordingStatusText(settings, projection)
+            recordingStatusText = buildRecordingStatusText(settings, projection),
+            activeSourceLabel = if (BuildConfig.USE_FAKE_EVENT_SOURCE) "DEMO_FAKE_SOURCE" else "REAL_DEVICE_SOURCE"
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState())
 
@@ -81,66 +88,44 @@ class MainViewModel @Inject constructor(
             eventSource.events.collect { event ->
                 val recorded = recordBehaviorEventUseCase(event, settingsFlow.value)
                 if (!recorded) {
-                    Timber.d("Event dropped by recording policy: $event")
+                    Timber.d("Event dropped by recording policy: %s", event)
                 }
-                // TODO: Add debounce/batch write strategy for better battery performance.
             }
         }
 
         viewModelScope.launch(Dispatchers.Default) {
-            combine(observeRecentEventsUseCase(limit = 30), settingsFlow) { events, settings ->
-                events to settings
-            }.collect { (events, settings) ->
-                val sequence = aggregateWindowUseCase(events, windowMillis)
-                val projection = buildBehaviorTextUseCase(sequence, settings)
-                projectionState.value = projection
-
-                val detectionEvents = projection.projectedEvents.filter {
-                    recordingPolicy.shouldUseForDetection(it, settings)
+            combine(recentEventsFlow, settingsFlow) { events, settings -> events to settings }
+                .collect { (events, settings) ->
+                    val sequence = aggregateWindowUseCase(events, windowMillis)
+                    projectionState.value = buildBehaviorTextUseCase(sequence, settings)
+                    exportJsonState.value = behaviorSeqJsonExporter.toJson(behaviorSeqJsonExporter.export(sequence))
+                    detectionState.value = if (settings.detectionEnabled) {
+                        runDetectionUseCase(sequence)
+                    } else {
+                        defaultDetectionResult(reason = "检测已关闭。")
+                    }
                 }
-                val detectionSequence = sequence.copy(events = detectionEvents)
-                detectionState.value = if (settings.detectionEnabled) {
-                    runDetectionUseCase(detectionSequence)
-                } else {
-                    defaultDetectionResult(reason = "检测已关闭。")
-                }
-            }
         }
     }
 
     fun onCollectionSwitchChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            Timber.d("Collection switch changed: $enabled")
-            updateCollectionSettingsUseCase.updateCollectionEnabled(enabled)
-        }
+        updateSetting("Collection", enabled) { updateCollectionSettingsUseCase.updateCollectionEnabled(enabled) }
     }
 
     fun onRecordingSwitchChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            Timber.d("Recording switch changed: $enabled")
-            updateCollectionSettingsUseCase.updateRecordingEnabled(enabled)
-        }
+        updateSetting("Recording", enabled) { updateCollectionSettingsUseCase.updateRecordingEnabled(enabled) }
     }
 
     fun onObservableOnlySwitchChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            Timber.d("Observable-only switch changed: $enabled")
-            updateCollectionSettingsUseCase.updateObservableOnly(enabled)
-        }
+        updateSetting("ObservableOnly", enabled) { updateCollectionSettingsUseCase.updateObservableOnly(enabled) }
     }
 
     fun onTextProjectionSwitchChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            Timber.d("Text projection switch changed: $enabled")
-            updateCollectionSettingsUseCase.updateTextProjectionEnabled(enabled)
-        }
+        updateSetting("TextProjection", enabled) { updateCollectionSettingsUseCase.updateTextProjectionEnabled(enabled) }
     }
 
     fun onDetectionSwitchChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            Timber.d("Detection switch changed: $enabled")
-            updateCollectionSettingsUseCase.updateDetectionEnabled(enabled)
-        }
+        updateSetting("Detection", enabled) { updateCollectionSettingsUseCase.updateDetectionEnabled(enabled) }
     }
 
     fun clearData() {
@@ -149,11 +134,17 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    private fun updateSetting(label: String, enabled: Boolean, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            Timber.d("%s switch changed: %s", label, enabled)
+            block()
+        }
+    }
+
     companion object {
         private fun defaultDetectionResult(reason: String = "等待事件输入中。") = DetectionResult(
-            stageAType = "other",
-            stageAConfidence = 0.0,
-            finalRisk = "NORMAL",
+            riskLabel = "NORMAL",
+            source = "RULE_BASED",
             reason = reason
         )
 
@@ -183,11 +174,12 @@ data class MainUiState(
     val recentEvents: List<BehaviorEvent> = emptyList(),
     val projectedEvents: List<BehaviorEvent> = emptyList(),
     val currentWindowText: String = "",
+    val exportJson: String = "",
     val detectionResult: DetectionResult = DetectionResult(
-        stageAType = "other",
-        stageAConfidence = 0.0,
-        finalRisk = "NORMAL",
+        riskLabel = "NORMAL",
+        source = "RULE_BASED",
         reason = "等待事件输入中。"
     ),
-    val recordingStatusText: String = "等待设置加载。"
+    val recordingStatusText: String = "等待设置加载。",
+    val activeSourceLabel: String = "UNKNOWN"
 )

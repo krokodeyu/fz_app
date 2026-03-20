@@ -18,6 +18,11 @@ class BehaviorEventLineFormatter @Inject constructor() {
             event.appType?.takeIf { it.isNotBlank() }?.let { add("APP类型=$it") }
             event.website?.takeIf { it.isNotBlank() }?.let { add("网站=$it") }
             event.websiteType?.takeIf { it.isNotBlank() }?.let { add("网站类型=$it") }
+            if (event.information.isNotEmpty()) {
+                add("信息=${event.information.entries.joinToString { "${it.key}:${it.value}" }}")
+            }
+            add("在线=${event.online}")
+            add("可观测=${event.observable}")
         }
         return "[${formatter.format(Date(event.timestamp))}] ${fields.joinToString(separator = " ")}"
     }

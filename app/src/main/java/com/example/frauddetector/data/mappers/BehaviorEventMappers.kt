@@ -11,7 +11,11 @@ fun BehaviorEventEntity.toDomain(): BehaviorEvent {
         appType = appType,
         website = website,
         websiteType = websiteType,
-        source = source
+        information = information,
+        online = online,
+        observable = observable,
+        source = source,
+        packageName = packageName
     )
 }
 
@@ -23,6 +27,14 @@ fun BehaviorEvent.toEntity(): BehaviorEventEntity {
         appType = appType,
         website = website,
         websiteType = websiteType,
+<<<<<<< HEAD
+        information = information,
+        online = online,
+        observable = observable,
+        source = source,
+        packageName = packageName
+=======
         source = source
+>>>>>>> main
     )
 }

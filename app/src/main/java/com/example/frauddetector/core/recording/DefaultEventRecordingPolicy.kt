@@ -16,11 +16,12 @@ class DefaultEventRecordingPolicy @Inject constructor(
     }
 
     override fun shouldProjectToText(event: BehaviorEvent, settings: CollectionSettings): Boolean {
+        if (!settings.textProjectionEnabled) return false
         return !settings.observableOnly || observableEventFilter.isObservable(event)
     }
 
     override fun shouldUseForDetection(event: BehaviorEvent, settings: CollectionSettings): Boolean {
         if (!settings.detectionEnabled) return false
-        return shouldProjectToText(event, settings)
+        return event.observable
     }
 }

@@ -21,11 +21,13 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        buildConfigField("String", "LOCAL_LLM_MODEL_PATH", "\"\"")
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            buildConfigField("boolean", "USE_FAKE_EVENT_SOURCE", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -33,6 +35,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            buildConfigField("boolean", "USE_FAKE_EVENT_SOURCE", "true")
         }
     }
 
@@ -47,6 +50,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -81,6 +85,12 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.timber)
+
+    testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
 }
 
 ksp {

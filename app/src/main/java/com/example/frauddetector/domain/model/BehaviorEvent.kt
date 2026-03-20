@@ -7,5 +7,9 @@ data class BehaviorEvent(
     val appType: String?,
     val website: String?,
     val websiteType: String?,
-    val source: String
+    val information: Map<String, String> = emptyMap(),
+    val online: Boolean = true,
+    val observable: Boolean = true,
+    val source: String,
+    val packageName: String? = null
 )

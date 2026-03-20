@@ -12,5 +12,9 @@ data class BehaviorEventEntity(
     val appType: String?,
     val website: String?,
     val websiteType: String?,
-    val source: String
+    val information: Map<String, String>,
+    val online: Boolean,
+    val observable: Boolean,
+    val source: String,
+    val packageName: String?
 )

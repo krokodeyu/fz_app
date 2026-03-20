@@ -18,7 +18,10 @@ class BehaviorStructProjector @Inject constructor() {
                 "app" to event.app,
                 "app_type" to event.appType,
                 "website" to event.website,
-                "website_type" to event.websiteType
+                "website_type" to event.websiteType,
+                "information" to event.information,
+                "online" to event.online,
+                "observable" to event.observable
             )
         }
     }

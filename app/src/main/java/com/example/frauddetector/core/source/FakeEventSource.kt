@@ -1,5 +1,6 @@
 package com.example.frauddetector.core.source
 
+import com.example.frauddetector.core.schema.StandardBehaviorAction
 import com.example.frauddetector.domain.model.BehaviorEvent
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,6 +15,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/**
+ * Demo-only event source for debug builds.
+ * Do not use this source as the default release path.
+ */
 @Singleton
 class FakeEventSource @Inject constructor() : EventSource {
 
@@ -42,31 +47,37 @@ class FakeEventSource @Inject constructor() : EventSource {
         val template = samples.random()
         return BehaviorEvent(
             timestamp = System.currentTimeMillis(),
-            action = template.action,
+            action = template.action.schemaAction,
             app = template.app,
             appType = template.appType,
             website = template.website,
             websiteType = template.websiteType,
-            source = "fake"
+            information = template.information,
+            online = template.online,
+            observable = template.action.observable,
+            source = "demo_fake_source",
+            packageName = template.packageName
         )
     }
 
     private data class Sample(
-        val action: String,
+        val action: StandardBehaviorAction,
         val app: String?,
         val appType: String?,
         val website: String?,
-        val websiteType: String?
+        val websiteType: String?,
+        val information: Map<String, String> = emptyMap(),
+        val online: Boolean = true,
+        val packageName: String? = null
     )
 
     private val samples = listOf(
-        Sample("打开应用", "闲鱼", "电商类app", null, null),
-        Sample("文本聊天", "闲鱼", "电商类app", null, null),
-        Sample("打开应用", "支付宝", "金融类app", null, null),
-        Sample("扫码", "支付宝", "金融类app", null, null),
-        Sample("打开应用", "云闪付", "金融类app", null, null),
-        Sample("购买商品", "云闪付", "金融类app", null, null),
-        Sample("打开浏览器", "Chrome", "工具类app", "flash-sale.example", "电商网站"),
-        Sample("切换前台应用", "相机", "工具类app", null, null)
+        Sample(StandardBehaviorAction.OPEN_APP, "闲鱼", "电商类app", null, null, packageName = "com.taobao.idlefish"),
+        Sample(StandardBehaviorAction.TEXT_CHAT, "闲鱼", "电商类app", null, null, information = mapOf("summary" to "购物事宜"), packageName = "com.taobao.idlefish"),
+        Sample(StandardBehaviorAction.OPEN_APP, "支付宝", "金融类app", null, null, packageName = "com.eg.android.AlipayGphone"),
+        Sample(StandardBehaviorAction.OPEN_CAMERA, "相机", "工具类app", null, null, packageName = "com.android.camera"),
+        Sample(StandardBehaviorAction.CAMERA_ACTIVE, "相机", "工具类app", null, null, packageName = "com.android.camera"),
+        Sample(StandardBehaviorAction.OPEN_BROWSER, "Chrome", "浏览器类app", "flash-sale.example", "电商网站", packageName = "com.android.chrome"),
+        Sample(StandardBehaviorAction.SWITCH_APP, "云闪付", "金融类app", null, null, packageName = "com.unionpay")
     )
 }

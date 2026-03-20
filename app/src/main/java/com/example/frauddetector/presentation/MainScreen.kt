@@ -48,6 +48,9 @@ fun MainScreen(
             DetectionCard(state)
         }
         item {
+            ExportCard(state.exportJson)
+        }
+        item {
             EventSection(title = "参与文本生成的事件", events = state.projectedEvents)
         }
         item {
@@ -72,6 +75,7 @@ private fun SettingsCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(text = "事件记录设置", style = MaterialTheme.typography.titleMedium)
+            Text(text = "当前数据源: ${state.activeSourceLabel}", style = MaterialTheme.typography.bodySmall)
             SettingRow(label = "启用采集", checked = state.collectionEnabled, onCheckedChange = onCollectionChanged)
             SettingRow(label = "启用记录", checked = state.recordingEnabled, onCheckedChange = onRecordingChanged)
             SettingRow(label = "仅记录 Observable", checked = state.observableOnly, onCheckedChange = onObservableOnlyChanged)
@@ -112,10 +116,29 @@ private fun DetectionCard(state: MainUiState) {
                 text = if (state.currentWindowText.isEmpty()) "暂无可投影事件" else state.currentWindowText,
                 style = MaterialTheme.typography.bodySmall
             )
-            Text("StageA 类型: ${state.detectionResult.stageAType}")
-            Text("StageA 置信度: ${"%.2f".format(state.detectionResult.stageAConfidence)}")
-            Text("最终风险: ${state.detectionResult.finalRisk}")
+            Text("风险标签: ${state.detectionResult.riskLabel}")
+            Text("诈骗子类型: ${state.detectionResult.fraudSubtype ?: "-"}")
+            Text("检测来源: ${state.detectionResult.source}")
             Text("解释: ${state.detectionResult.reason}")
+            if (state.detectionResult.evidence.isNotEmpty()) {
+                Text("证据: ${state.detectionResult.evidence.joinToString()}")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExportCard(exportJson: String) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(text = "behavior_seq JSON 导出", style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = if (exportJson.isBlank()) "暂无导出数据" else exportJson,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
@@ -155,6 +178,10 @@ private fun EventRow(event: BehaviorEvent) {
             Text(text = "[${formatter.format(Date(event.timestamp))}] ${event.action}")
             Text(text = "APP=${event.app ?: "-"} APP类型=${event.appType ?: "-"}")
             Text(text = "网站=${event.website ?: "-"} 网站类型=${event.websiteType ?: "-"}")
+            Text(text = "observable=${event.observable} online=${event.online}")
+            if (event.information.isNotEmpty()) {
+                Text(text = "information=${event.information}")
+            }
             Text(text = "source=${event.source}", style = MaterialTheme.typography.bodySmall)
         }
     }
