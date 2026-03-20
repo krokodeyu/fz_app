@@ -1,0 +1,39 @@
+{
+  "behavior_seq": [
+    {
+      "action": "打开应用",
+      "timestamp": "2026-03-19 08:00:00",
+      "app": "支付宝",
+      "app_type": "金融类app",
+      "website": null,
+      "website_type": null,
+      "information": {
+        "package_name": "com.eg.android.AlipayGphone"
+      },
+      "online": true,
+      "observable": true
+    },
+    {
+      "action": "调用相机",
+      "timestamp": "2026-03-19 08:00:05",
+      "app": "相机",
+      "app_type": "工具类app",
+      "website": null,
+      "website_type": null,
+      "information": {
+        "uid": "10234"
+      },
+      "online": true,
+      "observable": true
+    }
+  ],
+  "score": null,
+  "source": "device_capture",
+  "case_type": null,
+  "meta": {
+    "window_start": "2026-03-19 08:00:00",
+    "window_end": "2026-03-19 08:05:00",
+    "event_count": 2,
+    "window_millis": 300000
+  }
+}
