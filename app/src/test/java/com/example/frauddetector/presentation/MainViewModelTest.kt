@@ -4,7 +4,6 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.example.frauddetector.core.export.BehaviorSeqJsonExporter
 import com.example.frauddetector.core.recording.DefaultEventRecordingPolicy
 import com.example.frauddetector.core.recording.ObservableEventFilter
-import com.example.frauddetector.core.source.EventSource
 import com.example.frauddetector.core.transform.BehaviorEventLineFormatter
 import com.example.frauddetector.core.transform.BehaviorStructProjector
 import com.example.frauddetector.core.transform.BehaviorTextProjector
@@ -13,22 +12,21 @@ import com.example.frauddetector.domain.usecase.AggregateWindowUseCase
 import com.example.frauddetector.domain.usecase.BuildBehaviorTextUseCase
 import com.example.frauddetector.domain.usecase.ObserveCollectionSettingsUseCase
 import com.example.frauddetector.domain.usecase.ObserveRecentEventsUseCase
-import com.example.frauddetector.domain.usecase.RecordBehaviorEventUseCase
 import com.example.frauddetector.domain.usecase.RunDetectionUseCase
 import com.example.frauddetector.domain.usecase.UpdateCollectionSettingsUseCase
 import com.example.frauddetector.fixtures.CountingBehaviorEventRepository
+import com.example.frauddetector.fixtures.FakeCollectionRuntimeController
 import com.example.frauddetector.fixtures.FakeFraudDetector
 import com.example.frauddetector.fixtures.behaviorEvent
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -49,6 +47,7 @@ class MainViewModelTest {
             val observeSettings = ObserveCollectionSettingsUseCase(settingsStore)
             val updateSettings = UpdateCollectionSettingsUseCase(settingsStore)
             val policy = DefaultEventRecordingPolicy(ObservableEventFilter())
+            val runtimeController = FakeCollectionRuntimeController()
             val viewModel = MainViewModel(
                 observeRecentEventsUseCase = ObserveRecentEventsUseCase(repository),
                 observeCollectionSettingsUseCase = observeSettings,
@@ -61,20 +60,16 @@ class MainViewModelTest {
                     policy
                 ),
                 runDetectionUseCase = RunDetectionUseCase(FakeFraudDetector()),
-                recordBehaviorEventUseCase = RecordBehaviorEventUseCase(repository, policy),
                 repository = repository,
-                eventSource = object : EventSource {
-                    override val events: Flow<com.example.frauddetector.domain.model.BehaviorEvent> = emptyFlow()
-                    override fun start() = Unit
-                    override fun stop() = Unit
-                },
-                behaviorSeqJsonExporter = BehaviorSeqJsonExporter(com.example.frauddetector.core.export.BehaviorSeqAssembler(), BehaviorStructProjector())
+                behaviorSeqJsonExporter = BehaviorSeqJsonExporter(com.example.frauddetector.core.export.BehaviorSeqAssembler(), BehaviorStructProjector()),
+                collectionServiceController = runtimeController
             )
 
             viewModel.uiState.value
             testScheduler.advanceUntilIdle()
 
             assertEquals(1, repository.subscriptions.get())
+            assertTrue(!viewModel.uiState.value.collectionEnabled)
         } finally {
             Dispatchers.resetMain()
         }

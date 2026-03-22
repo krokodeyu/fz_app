@@ -44,18 +44,10 @@ fun MainScreen(
                 onClearData = onClearData
             )
         }
-        item {
-            DetectionCard(state)
-        }
-        item {
-            ExportCard(state.exportJson)
-        }
-        item {
-            EventSection(title = "参与文本生成的事件", events = state.projectedEvents)
-        }
-        item {
-            EventSection(title = "最近原始事件", events = state.recentEvents)
-        }
+        item { DetectionCard(state) }
+        item { ExportCard(state.exportJson) }
+        item { EventSection(title = "参与文本生成的事件", events = state.projectedEvents) }
+        item { EventSection(title = "最近原始事件", events = state.recentEvents) }
     }
 }
 
@@ -76,15 +68,13 @@ private fun SettingsCard(
         ) {
             Text(text = "事件记录设置", style = MaterialTheme.typography.titleMedium)
             Text(text = "当前数据源: ${state.activeSourceLabel}", style = MaterialTheme.typography.bodySmall)
-            SettingRow(label = "启用采集", checked = state.collectionEnabled, onCheckedChange = onCollectionChanged)
-            SettingRow(label = "启用记录", checked = state.recordingEnabled, onCheckedChange = onRecordingChanged)
+            SettingRow(label = "启用采集（启动/停止后台监听）", checked = state.collectionEnabled, onCheckedChange = onCollectionChanged)
+            SettingRow(label = "启用记录（写入本地 Room）", checked = state.recordingEnabled, onCheckedChange = onRecordingChanged)
             SettingRow(label = "仅记录 Observable", checked = state.observableOnly, onCheckedChange = onObservableOnlyChanged)
-            SettingRow(label = "启用文本生成", checked = state.textProjectionEnabled, onCheckedChange = onTextProjectionChanged)
+            SettingRow(label = "启用文本生成（仅影响 text 投影）", checked = state.textProjectionEnabled, onCheckedChange = onTextProjectionChanged)
             SettingRow(label = "启用检测", checked = state.detectionEnabled, onCheckedChange = onDetectionChanged)
             Text(text = state.recordingStatusText, style = MaterialTheme.typography.bodySmall)
-            Button(onClick = onClearData) {
-                Text("清空本地数据")
-            }
+            Button(onClick = onClearData) { Text("清空本地数据") }
         }
     }
 }
@@ -99,7 +89,7 @@ private fun SettingRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label)
+        Text(text = label, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -158,9 +148,7 @@ private fun EventSection(
                 Text(text = "暂无事件", style = MaterialTheme.typography.bodySmall)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    events.forEach { event ->
-                        EventRow(event)
-                    }
+                    events.forEach { event -> EventRow(event) }
                 }
             }
         }

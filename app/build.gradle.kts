@@ -21,6 +21,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        buildConfigField("String", "LOCAL_LLM_MODEL_ID", "\"Qwen/Qwen2-1.5B-Instruct\"")
         buildConfigField("String", "LOCAL_LLM_MODEL_PATH", "\"\"")
     }
 
@@ -35,7 +36,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
-            buildConfigField("boolean", "USE_FAKE_EVENT_SOURCE", "true")
+            buildConfigField("boolean", "USE_FAKE_EVENT_SOURCE", "false")
         }
     }
 
@@ -65,6 +66,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.service)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))

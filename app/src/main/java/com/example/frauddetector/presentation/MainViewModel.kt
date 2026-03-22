@@ -2,9 +2,8 @@ package com.example.frauddetector.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.frauddetector.BuildConfig
+import com.example.frauddetector.core.capture.CollectionRuntimeController
 import com.example.frauddetector.core.detection.DetectionResult
-import com.example.frauddetector.core.source.EventSource
 import com.example.frauddetector.core.export.BehaviorSeqJsonExporter
 import com.example.frauddetector.domain.model.BehaviorEvent
 import com.example.frauddetector.domain.model.BehaviorTextProjection
@@ -14,7 +13,6 @@ import com.example.frauddetector.domain.usecase.AggregateWindowUseCase
 import com.example.frauddetector.domain.usecase.BuildBehaviorTextUseCase
 import com.example.frauddetector.domain.usecase.ObserveCollectionSettingsUseCase
 import com.example.frauddetector.domain.usecase.ObserveRecentEventsUseCase
-import com.example.frauddetector.domain.usecase.RecordBehaviorEventUseCase
 import com.example.frauddetector.domain.usecase.RunDetectionUseCase
 import com.example.frauddetector.domain.usecase.UpdateCollectionSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,10 +34,9 @@ class MainViewModel @Inject constructor(
     private val aggregateWindowUseCase: AggregateWindowUseCase,
     private val buildBehaviorTextUseCase: BuildBehaviorTextUseCase,
     private val runDetectionUseCase: RunDetectionUseCase,
-    private val recordBehaviorEventUseCase: RecordBehaviorEventUseCase,
     private val repository: BehaviorEventRepository,
-    private val eventSource: EventSource,
-    private val behaviorSeqJsonExporter: BehaviorSeqJsonExporter
+    private val behaviorSeqJsonExporter: BehaviorSeqJsonExporter,
+    private val collectionServiceController: CollectionRuntimeController
 ) : ViewModel() {
 
     private val windowMillis = 5 * 60 * 1000L
@@ -50,6 +47,9 @@ class MainViewModel @Inject constructor(
     private val recentEventsFlow = observeRecentEventsUseCase(limit = 30)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    private val serviceRunningFlow = collectionServiceController.serviceRunning
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     private val projectionState = MutableStateFlow(BehaviorTextProjection())
     private val detectionState = MutableStateFlow(defaultDetectionResult())
     private val exportJsonState = MutableStateFlow("")
@@ -59,8 +59,9 @@ class MainViewModel @Inject constructor(
         settingsFlow,
         projectionState,
         detectionState,
-        exportJsonState
-    ) { recentEvents, settings, projection, detection, exportJson ->
+        exportJsonState,
+        serviceRunningFlow
+    ) { recentEvents, settings, projection, detection, exportJson, serviceRunning ->
         MainUiState(
             collectionEnabled = settings.collectionEnabled,
             recordingEnabled = settings.recordingEnabled,
@@ -72,24 +73,15 @@ class MainViewModel @Inject constructor(
             currentWindowText = projection.text,
             exportJson = exportJson,
             detectionResult = detection,
-            recordingStatusText = buildRecordingStatusText(settings, projection),
-            activeSourceLabel = if (BuildConfig.USE_FAKE_EVENT_SOURCE) "DEMO_FAKE_SOURCE" else "REAL_DEVICE_SOURCE"
+            recordingStatusText = buildRecordingStatusText(settings, projection, serviceRunning),
+            activeSourceLabel = if (serviceRunning) "REAL_DEVICE_FOREGROUND_SERVICE" else "REAL_DEVICE_IDLE"
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState())
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
             settingsFlow.collect { settings ->
-                if (settings.collectionEnabled) eventSource.start() else eventSource.stop()
-            }
-        }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            eventSource.events.collect { event ->
-                val recorded = recordBehaviorEventUseCase(event, settingsFlow.value)
-                if (!recorded) {
-                    Timber.d("Event dropped by recording policy: %s", event)
-                }
+                collectionServiceController.syncCollectionEnabled(settings.collectionEnabled)
             }
         }
 
@@ -150,10 +142,13 @@ class MainViewModel @Inject constructor(
 
         private fun buildRecordingStatusText(
             settings: CollectionSettings,
-            projection: BehaviorTextProjection
+            projection: BehaviorTextProjection,
+            serviceRunning: Boolean
         ): String {
             return buildString {
-                append(if (settings.collectionEnabled) "采集中" else "采集关闭")
+                append(if (settings.collectionEnabled) "采集开关开启" else "采集开关关闭")
+                append(" / ")
+                append(if (serviceRunning) "后台监听已运行" else "后台监听未运行")
                 append(" / ")
                 append(if (settings.recordingEnabled) "记录开启" else "记录关闭")
                 append(" / ")

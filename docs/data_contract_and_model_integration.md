@@ -91,9 +91,10 @@ Current repo status:
 - the app exposes `LocalInferenceEngine` and `LlamaCppInferenceEngine`
 - the JNI / llama.cpp runtime is **not** fully wired yet
 - fallback to `RuleBasedFraudDetector` is the default safe path when no GGUF model is available
+- the app is now scaffolded around `Qwen/Qwen2-1.5B-Instruct` as the target embedded model id
 
 ## Platform limitations
 
 - UsageStats requires manual user authorization and may vary across ROMs.
 - Camera AppOps callbacks can vary by device/ROM and are best-effort only for ordinary apps.
-- Background persistence and continuous collection may still need Foreground Service hardening for production roll-out.
+- Background persistence is now driven through a foreground service when collection is enabled; reboot restore is still not implemented.

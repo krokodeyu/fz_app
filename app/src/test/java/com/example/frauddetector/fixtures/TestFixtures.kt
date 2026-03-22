@@ -77,6 +77,28 @@ class InMemoryBehaviorEventRepository : BehaviorEventRepository {
     }
 }
 
+
+
+class CapturingBehaviorEventRepository : BehaviorEventRepository {
+    val inserted = mutableListOf<BehaviorEvent>()
+
+    override fun observeRecentEvents(limit: Int): Flow<List<BehaviorEvent>> = flow {
+        emit(inserted.takeLast(limit).reversed())
+    }
+
+    override suspend fun insertEvent(event: BehaviorEvent) {
+        inserted += event
+    }
+
+    override suspend fun insertEvents(events: List<BehaviorEvent>) {
+        inserted += events
+    }
+
+    override suspend fun clearAll() {
+        inserted.clear()
+    }
+}
+
 class FakeFraudDetector : FraudDetector {
     override suspend fun detect(sequence: BehaviorSequence): DetectionResult {
         return DetectionResult(
@@ -84,5 +106,15 @@ class FakeFraudDetector : FraudDetector {
             source = "TEST",
             reason = "test detector"
         )
+    }
+}
+
+
+class FakeCollectionRuntimeController(initialRunning: Boolean = false) : com.example.frauddetector.core.capture.CollectionRuntimeController {
+    private val state = kotlinx.coroutines.flow.MutableStateFlow(initialRunning)
+    override val serviceRunning: kotlinx.coroutines.flow.StateFlow<Boolean> = state
+
+    override fun syncCollectionEnabled(enabled: Boolean) {
+        state.value = enabled
     }
 }

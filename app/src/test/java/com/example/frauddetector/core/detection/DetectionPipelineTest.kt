@@ -7,6 +7,8 @@ import com.example.frauddetector.core.detection.input.DetectionInputBuilder
 import com.example.frauddetector.core.export.BehaviorSeqAssembler
 import com.example.frauddetector.core.export.BehaviorSeqJsonExporter
 import com.example.frauddetector.core.inference.LocalInferenceEngine
+import com.example.frauddetector.core.model.LocalModelConfig
+import com.example.frauddetector.core.model.QwenPromptFormatter
 import com.example.frauddetector.core.transform.BehaviorEventLineFormatter
 import com.example.frauddetector.core.transform.BehaviorStructProjector
 import com.example.frauddetector.core.transform.BehaviorTextProjector
@@ -47,13 +49,20 @@ class DetectionPipelineTest {
             BehaviorSeqJsonExporter(BehaviorSeqAssembler(), BehaviorStructProjector()),
             BehaviorTextProjector(BehaviorEventLineFormatter())
         )
+        val modelConfig = LocalModelConfig()
+        val promptFormatter = QwenPromptFormatter(modelConfig)
         val ruleDetector = RuleBasedFraudDetector(builder)
-        val localDetector = LocalLlmFraudDetector(builder, object : LocalInferenceEngine {
-            override fun isModelAvailable(): Boolean = false
-            override suspend fun loadModel(modelPath: String): Boolean = false
-            override suspend fun runInference(prompt: String): String = ""
-            override fun release() = Unit
-        })
+        val localDetector = LocalLlmFraudDetector(
+            builder,
+            object : LocalInferenceEngine {
+                override fun isModelAvailable(): Boolean = false
+                override suspend fun loadModel(modelPath: String): Boolean = false
+                override suspend fun runInference(prompt: String): String = ""
+                override fun release() = Unit
+            },
+            modelConfig,
+            promptFormatter
+        )
         val fallback = FallbackFraudDetector(
             localDetector,
             ruleDetector,
@@ -76,5 +85,26 @@ class DetectionPipelineTest {
         }
 
         assertEquals("RULE_BASED", result.source)
+    }
+
+    @Test
+    fun qwen_prompt_formatter_wraps_json_with_chat_template() {
+        val input = DetectionInputBuilder(
+            BehaviorSeqAssembler(),
+            BehaviorSeqJsonExporter(BehaviorSeqAssembler(), BehaviorStructProjector()),
+            BehaviorTextProjector(BehaviorEventLineFormatter())
+        ).build(
+            BehaviorSequence(
+                windowStart = 0L,
+                windowEnd = 5_000L,
+                events = listOf(behaviorEvent(1_000L, "打开应用", app = "支付宝", appType = "金融类app"))
+            )
+        )
+
+        val prompt = QwenPromptFormatter(LocalModelConfig()).format(input)
+
+        assertTrue(prompt.contains("<|im_start|>system"))
+        assertTrue(prompt.contains("Qwen2-1.5B-Instruct"))
+        assertTrue(prompt.contains("behavior_seq"))
     }
 }
