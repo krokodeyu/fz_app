@@ -53,15 +53,18 @@ class MainViewModel @Inject constructor(
     private val projectionState = MutableStateFlow(BehaviorTextProjection())
     private val detectionState = MutableStateFlow(defaultDetectionResult())
     private val exportJsonState = MutableStateFlow("")
+    private val runtimeStatusFlow = combine(settingsFlow, serviceRunningFlow) { settings, serviceRunning ->
+        settings to serviceRunning
+    }
 
     val uiState: StateFlow<MainUiState> = combine(
         recentEventsFlow,
-        settingsFlow,
         projectionState,
         detectionState,
         exportJsonState,
-        serviceRunningFlow
-    ) { recentEvents, settings, projection, detection, exportJson, serviceRunning ->
+        runtimeStatusFlow
+    ) { recentEvents, projection, detection, exportJson, runtimeStatus ->
+        val (settings, serviceRunning) = runtimeStatus
         MainUiState(
             collectionEnabled = settings.collectionEnabled,
             recordingEnabled = settings.recordingEnabled,
