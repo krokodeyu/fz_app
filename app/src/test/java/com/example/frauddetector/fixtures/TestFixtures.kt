@@ -112,9 +112,21 @@ class FakeFraudDetector : FraudDetector {
 
 class FakeCollectionRuntimeController(initialRunning: Boolean = false) : com.example.frauddetector.core.capture.CollectionRuntimeController {
     private val state = kotlinx.coroutines.flow.MutableStateFlow(initialRunning)
+    private val diagnosticsState = kotlinx.coroutines.flow.MutableStateFlow(
+        com.example.frauddetector.core.capture.CaptureDiagnostics(
+            serviceRunning = initialRunning,
+            usageAccessGranted = true,
+            notificationPermissionGranted = true,
+            cameraMonitoringSupported = true
+        )
+    )
     override val serviceRunning: kotlinx.coroutines.flow.StateFlow<Boolean> = state
+    override val diagnostics: kotlinx.coroutines.flow.StateFlow<com.example.frauddetector.core.capture.CaptureDiagnostics> = diagnosticsState
 
     override fun syncCollectionEnabled(enabled: Boolean) {
         state.value = enabled
+        diagnosticsState.value = diagnosticsState.value.copy(serviceRunning = enabled)
     }
+
+    override fun refreshDiagnostics() = Unit
 }

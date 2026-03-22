@@ -98,3 +98,23 @@ Current repo status:
 - UsageStats requires manual user authorization and may vary across ROMs.
 - Camera AppOps callbacks can vary by device/ROM and are best-effort only for ordinary apps.
 - Background persistence is now driven through a foreground service when collection is enabled; reboot restore is still not implemented.
+
+
+## Why foreground app events may not appear
+
+If opening/switching/closing Gmail, YouTube, Chrome or other apps does not produce records, the most common reasons are:
+
+- `UsageStats` / Usage Access has not been granted yet, so foreground app open/switch/close events cannot be queried.
+- the collection foreground service is not running because the in-app collection switch is off.
+- notification permission is disabled on newer Android versions, so the foreground service may not stay visibly/consistently active.
+
+## Integrating and testing the real Qwen model
+
+Recommended path for `Qwen/Qwen2-1.5B-Instruct`:
+
+1. Fine-tune or prepare the merged Hugging Face model off-device.
+2. Convert the merged model to GGUF for `llama.cpp`.
+3. Push the `.gguf` file onto the test device (for example into app-specific external storage).
+4. Set `LOCAL_LLM_MODEL_PATH` to that absolute device path for the build variant you use.
+5. Replace the TODO in `LlamaCppInferenceEngine` with the actual JNI-backed `llama.cpp` loading / inference call.
+6. Enable collection, generate a real `behavior_seq`, then confirm the detection result source switches from `RULE_BASED` to `LOCAL_LLM`.

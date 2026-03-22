@@ -27,6 +27,8 @@ fun MainScreen(
     onObservableOnlyChanged: (Boolean) -> Unit,
     onTextProjectionChanged: (Boolean) -> Unit,
     onDetectionChanged: (Boolean) -> Unit,
+    onOpenUsageAccessSettings: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
     onClearData: () -> Unit
 ) {
     LazyColumn(
@@ -41,6 +43,8 @@ fun MainScreen(
                 onObservableOnlyChanged = onObservableOnlyChanged,
                 onTextProjectionChanged = onTextProjectionChanged,
                 onDetectionChanged = onDetectionChanged,
+                onOpenUsageAccessSettings = onOpenUsageAccessSettings,
+                onOpenNotificationSettings = onOpenNotificationSettings,
                 onClearData = onClearData
             )
         }
@@ -59,6 +63,8 @@ private fun SettingsCard(
     onObservableOnlyChanged: (Boolean) -> Unit,
     onTextProjectionChanged: (Boolean) -> Unit,
     onDetectionChanged: (Boolean) -> Unit,
+    onOpenUsageAccessSettings: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
     onClearData: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -68,11 +74,23 @@ private fun SettingsCard(
         ) {
             Text(text = "事件记录设置", style = MaterialTheme.typography.titleMedium)
             Text(text = "当前数据源: ${state.activeSourceLabel}", style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = when {
+                    !state.usageAccessGranted -> "当前无法采集前台 app 打开/关闭/切换：请先授予 Usage Access 权限。"
+                    !state.notificationPermissionGranted -> "前台服务通知权限未开启，后台常驻采集可能被系统限制。"
+                    else -> "前台 app / 安装卸载 / 相机活跃采集链路已就绪。"
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
             SettingRow(label = "启用采集（启动/停止后台监听）", checked = state.collectionEnabled, onCheckedChange = onCollectionChanged)
             SettingRow(label = "启用记录（写入本地 Room）", checked = state.recordingEnabled, onCheckedChange = onRecordingChanged)
             SettingRow(label = "仅记录 Observable", checked = state.observableOnly, onCheckedChange = onObservableOnlyChanged)
             SettingRow(label = "启用文本生成（仅影响 text 投影）", checked = state.textProjectionEnabled, onCheckedChange = onTextProjectionChanged)
             SettingRow(label = "启用检测", checked = state.detectionEnabled, onCheckedChange = onDetectionChanged)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onOpenUsageAccessSettings) { Text("打开 Usage Access") }
+                Button(onClick = onOpenNotificationSettings) { Text("打开通知设置") }
+            }
             Text(text = state.recordingStatusText, style = MaterialTheme.typography.bodySmall)
             Button(onClick = onClearData) { Text("清空本地数据") }
         }

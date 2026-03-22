@@ -2,6 +2,7 @@ package com.example.frauddetector.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.frauddetector.core.capture.CaptureDiagnostics
 import com.example.frauddetector.core.capture.CollectionRuntimeController
 import com.example.frauddetector.core.detection.DetectionResult
 import com.example.frauddetector.core.export.BehaviorSeqJsonExporter
@@ -47,14 +48,14 @@ class MainViewModel @Inject constructor(
     private val recentEventsFlow = observeRecentEventsUseCase(limit = 30)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    private val serviceRunningFlow = collectionServiceController.serviceRunning
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    private val runtimeDiagnosticsFlow = collectionServiceController.diagnostics
+        .stateIn(viewModelScope, SharingStarted.Eagerly, CaptureDiagnostics())
 
     private val projectionState = MutableStateFlow(BehaviorTextProjection())
     private val detectionState = MutableStateFlow(defaultDetectionResult())
     private val exportJsonState = MutableStateFlow("")
-    private val runtimeStatusFlow = combine(settingsFlow, serviceRunningFlow) { settings, serviceRunning ->
-        settings to serviceRunning
+    private val runtimeStatusFlow = combine(settingsFlow, runtimeDiagnosticsFlow) { settings, diagnostics ->
+        settings to diagnostics
     }
 
     val uiState: StateFlow<MainUiState> = combine(
@@ -64,7 +65,7 @@ class MainViewModel @Inject constructor(
         exportJsonState,
         runtimeStatusFlow
     ) { recentEvents, projection, detection, exportJson, runtimeStatus ->
-        val (settings, serviceRunning) = runtimeStatus
+        val (settings, diagnostics) = runtimeStatus
         MainUiState(
             collectionEnabled = settings.collectionEnabled,
             recordingEnabled = settings.recordingEnabled,
@@ -76,8 +77,11 @@ class MainViewModel @Inject constructor(
             currentWindowText = projection.text,
             exportJson = exportJson,
             detectionResult = detection,
-            recordingStatusText = buildRecordingStatusText(settings, projection, serviceRunning),
-            activeSourceLabel = if (serviceRunning) "REAL_DEVICE_FOREGROUND_SERVICE" else "REAL_DEVICE_IDLE"
+            recordingStatusText = buildRecordingStatusText(settings, projection, diagnostics),
+            activeSourceLabel = if (diagnostics.serviceRunning) "REAL_DEVICE_FOREGROUND_SERVICE" else "REAL_DEVICE_IDLE",
+            usageAccessGranted = diagnostics.usageAccessGranted,
+            notificationPermissionGranted = diagnostics.notificationPermissionGranted,
+            cameraMonitoringSupported = diagnostics.cameraMonitoringSupported
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState())
 
@@ -101,6 +105,10 @@ class MainViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    fun refreshRuntimeDiagnostics() {
+        collectionServiceController.refreshDiagnostics()
     }
 
     fun onCollectionSwitchChanged(enabled: Boolean) {
@@ -146,12 +154,14 @@ class MainViewModel @Inject constructor(
         private fun buildRecordingStatusText(
             settings: CollectionSettings,
             projection: BehaviorTextProjection,
-            serviceRunning: Boolean
+            diagnostics: CaptureDiagnostics
         ): String {
             return buildString {
                 append(if (settings.collectionEnabled) "采集开关开启" else "采集开关关闭")
                 append(" / ")
-                append(if (serviceRunning) "后台监听已运行" else "后台监听未运行")
+                append(if (diagnostics.serviceRunning) "后台监听已运行" else "后台监听未运行")
+                append(" / ")
+                append(if (diagnostics.usageAccessGranted) "UsageAccess已授权" else "缺少UsageAccess授权")
                 append(" / ")
                 append(if (settings.recordingEnabled) "记录开启" else "记录关闭")
                 append(" / ")
@@ -179,5 +189,8 @@ data class MainUiState(
         reason = "等待事件输入中。"
     ),
     val recordingStatusText: String = "等待设置加载。",
-    val activeSourceLabel: String = "UNKNOWN"
+    val activeSourceLabel: String = "UNKNOWN",
+    val usageAccessGranted: Boolean = false,
+    val notificationPermissionGranted: Boolean = true,
+    val cameraMonitoringSupported: Boolean = true
 )
